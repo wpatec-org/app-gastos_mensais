@@ -1,0 +1,16 @@
+# Python
+*.pyc
+__pycache__/
+.venv/
+*.log
+*.egg-info/
+.vscode/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Flask
+instance/
+.env
