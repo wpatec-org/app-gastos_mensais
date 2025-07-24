@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Financeiro</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h2 { text-align: center; }
+        .credito { color: green; }
+        .deficit { color: red; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h2>Relatório Financeiro</h2>
+    <p><strong>Relatório gerado em:</strong> {{ data }}</p>
+
+    <h4>Despesas:</h4>
+    {% if despesas %}
+        <ul>
+        {% for nome, valor in despesas %}
+            <li>- {{ nome }}: R$ {{ "%.2f"|format(valor) }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>Nenhuma despesa registrada.</p>
+    {% endif %}
+
+    <p><strong>Salário:</strong> R$ {{ "%.2f"|format(salario or 0) }}</p>
+    <p><strong>Total de Despesas:</strong> R$ {{ "%.2f"|format(total or 0) }}</p>
+    <p class="{{ 'credito' if tipo == 'Crédito' else 'deficit' }}">
+        <strong>Resultado:</strong> {{ tipo }} de R$ {{ "%.2f"|format(resultado or 0) }}
+    </p>
+</body>
+</html>

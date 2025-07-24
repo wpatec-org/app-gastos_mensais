@@ -1,109 +1,96 @@
-from flask import Flask, render_template, request, flash, session, redirect, url_for
-import os
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, flash
 from datetime import datetime
+import os
+from weasyprint import HTML
 
 app = Flask(__name__)
-app.secret_key = 'segredo'
+app.secret_key = 'sua_chave_secreta'
+
+PASTA_RELATORIOS = os.path.join(os.getcwd(), 'relatorios')
+os.makedirs(PASTA_RELATORIOS, exist_ok=True)
 
 DESPESAS_FIXAS = [
-    "ItauCard", "NUBANK", "WillBank", "INTER", "MELIUZ", "PAN", "PIC PAY",
-    "AGUA", "LUZ", "IINTERNET", "IPVA", "IPTU", "Pres Casa", "Pensão", "LICENCIAMENTOS"
+    "ItauCard", "NUBANK", "WillBank", "INTER", "MELIUZ",
+    "PAN", "PIC PAY", "AGUA", "LUZ", "IINTERNET",
+    "IPVA", "IPTU", "Pres Casa", "Pensão", "LICENCIAMENTOS"
 ]
-
-RELATORIOS_DIR = 'relatorios'
-os.makedirs(RELATORIOS_DIR, exist_ok=True)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    resultado = total = salario = None
+    tipo = ''
     despesas = []
-    total_despesas = 0.0
-    resultado = None
-    tipo_resultado = None
-    salario = 0.0
 
     if request.method == 'POST':
-        if 'calcular' in request.form:
-            try:
-                salario = float(request.form.get('salario', '0').replace(',', '.'))
-            except ValueError:
-                salario = 0.0
+        nomes = request.form.getlist('nomes[]')
+        valores = request.form.getlist('valores[]')
+        extra_nomes = request.form.getlist('extra_nome[]')
+        extra_valores = request.form.getlist('extra_valor[]')
+        salario_str = request.form.get('salario', '0').replace(',', '.')
+        salario = float(salario_str) if salario_str else 0.0
 
-            nomes = request.form.getlist('nomes[]')
-            valores = request.form.getlist('valores[]')
+        for nome, val in zip(nomes, valores):
+            if val.strip():
+                try:
+                    despesas.append((nome, float(val)))
+                except ValueError:
+                    pass
 
-            for nome, valor in zip(nomes, valores):
-                valor = valor.strip().replace(',', '.')
-                if valor:
-                    try:
-                        valor_float = float(valor)
-                    except ValueError:
-                        valor_float = 0.0
-                    despesas.append((nome, valor_float))
-                    total_despesas += valor_float
+        for nome, val in zip(extra_nomes, extra_valores):
+            if nome.strip() and val.strip():
+                try:
+                    despesas.append((nome.strip(), float(val)))
+                except ValueError:
+                    pass
 
-            extras_nomes = request.form.getlist('extra_nome[]')
-            extras_valores = request.form.getlist('extra_valor[]')
+        total = sum(valor for _, valor in despesas)
+        resultado = salario - total
+        tipo = 'Crédito' if resultado >= 0 else 'Déficit'
 
-            for nome, valor in zip(extras_nomes, extras_valores):
-                nome = nome.strip()
-                valor = valor.strip().replace(',', '.')
-                if nome:
-                    try:
-                        valor_float = float(valor)
-                    except ValueError:
-                        valor_float = 0.0
-                    despesas.append((nome, valor_float))
-                    total_despesas += valor_float
+        # Salvar relatório
+        if 'salvar' in request.form:
+            if salario == 0:
+                flash("Informe o salário antes de salvar o relatório.", "danger")
+            else:
+                agora = datetime.now()
+                nome_arquivo = f"relatorio_{agora.strftime('%Y-%m-%d_%H-%M-%S')}.pdf"
+                caminho_arquivo = os.path.join(PASTA_RELATORIOS, nome_arquivo)
 
-            resultado = round(salario - total_despesas, 2)
-            tipo_resultado = "Crédito" if resultado >= 0 else "Déficit"
+                html = render_template("relatorio_pdf.html",
+                                       data=agora.strftime('%d/%m/%Y'),
+                                       despesas=despesas,
+                                       total=total,
+                                       resultado=resultado,
+                                       tipo=tipo,
+                                       salario=salario)
+                HTML(string=html).write_pdf(caminho_arquivo)
+                flash(f"Relatório salvo como {nome_arquivo}", "success")
 
-            # salvar na sessão
-            session['despesas'] = despesas
-            session['salario'] = salario
-            session['total'] = total_despesas
-            session['resultado'] = resultado
-            session['tipo'] = tipo_resultado
+        return render_template("index.html",
+                               despesas_nomes=DESPESAS_FIXAS,
+                               despesas=despesas,
+                               total=total,
+                               resultado=resultado,
+                               tipo=tipo,
+                               salario=salario)
 
-        elif 'salvar' in request.form:
-            # recuperar da sessão
-            despesas = session.get('despesas', [])
-            salario = session.get('salario', 0.0)
-            total_despesas = session.get('total', 0.0)
-            resultado = session.get('resultado', 0.0)
-            tipo_resultado = session.get('tipo', 'Crédito')
-
-            data_nome = datetime.now().strftime("%d-%m-%Y")
-            data_texto = datetime.now().strftime("%d/%m/%Y")
-            nome_arquivo = f"relatorio_{data_nome}.txt"
-            caminho = os.path.join(RELATORIOS_DIR, nome_arquivo)
-
-            with open(caminho, 'w', encoding='utf-8') as f:
-                f.write(f"Relatório gerado em: {data_texto}\n")
-                f.write("Despesas:\n")
-                if despesas:
-                    for nome, valor in despesas:
-                        f.write(f"  - {nome}: R$ {valor:.2f}\n")
-                else:
-                    f.write("  Nenhuma despesa registrada.\n")
-                f.write(f"\nSalário: R$ {salario:.2f}\n")
-                f.write(f"Total de Despesas: R$ {total_despesas:.2f}\n")
-                f.write(f"Resultado: {tipo_resultado} de R$ {resultado:.2f}\n")
-
-            flash(f"Relatório salvo como {nome_arquivo}", "success")
-            return redirect(url_for('index'))
-
-    else:
-        # limpar sessão se for GET
-        session.clear()
-
+    # GET
     return render_template("index.html",
                            despesas_nomes=DESPESAS_FIXAS,
-                           despesas=despesas,
-                           total=total_despesas,
-                           resultado=resultado,
-                           tipo=tipo_resultado,
-                           salario=salario)
+                           despesas=[],
+                           total=None,
+                           resultado=None,
+                           tipo='',
+                           salario=None)
+
+@app.route('/relatorios')
+def relatorios():
+    arquivos = sorted([f for f in os.listdir(PASTA_RELATORIOS) if f.endswith('.pdf')])
+    return render_template("relatorios.html", arquivos=arquivos)
+
+@app.route('/relatorio/<nome_arquivo>')
+def abrir_relatorio(nome_arquivo):
+    return send_from_directory(PASTA_RELATORIOS, nome_arquivo)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True, host='0.0.0.0')
