@@ -5,110 +5,162 @@
   <title>Resumo Financeiro</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background-color: #f8f9fa; }
-    h2 { color: #333; }
+    body { background-color: #f8f9fa; padding: 20px; }
+    h2 { color: #2c3e50; margin-bottom: 30px; }
     .form-label { font-weight: 500; }
-    .resultado { font-size: 1.2rem; font-weight: bold; }
+    .resultado-section { margin-top: 30px; padding: 20px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .resultado-title { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    .list-group-item { border-left: 4px solid #3498db; }
+    .credito { color: #27ae60; font-weight: bold; }
+    .debito { color: #e74c3c; font-weight: bold; }
+    .required-field::after { content: " *"; color: red; }
+    .despesa-input:invalid { border-color: #e74c3c; }
   </style>
 </head>
 <body>
-<div class="container my-5">
-  <h2 class="text-center mb-4">💸 Resumo Financeiro Mensal</h2>
+<div class="container">
+  <h2 class="text-center">💰 Resumo Financeiro Mensal</h2>
 
-  <!-- Mensagem de sucesso ao salvar relatório -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="mt-3">
+      <div class="mb-4">
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ category }} alert-dismissible fade show">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
           </div>
         {% endfor %}
       </div>
     {% endif %}
   {% endwith %}
 
-  <form method="POST">
-    <h5>Despesas Fixas</h5>
-    <div class="row">
-      {% for nome in despesas_nomes %}
-      <div class="col-md-4 mb-3">
-        <label class="form-label">{{ nome }}</label>
-        <input type="number" step="0.01" name="valores[]" class="form-control" placeholder="R$ 0,00">
-        <input type="hidden" name="nomes[]" value="{{ nome }}">
+  <form method="POST" id="financeForm">
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5>Despesas Fixas</h5>
       </div>
-      {% endfor %}
-    </div>
-
-    <hr>
-    <h5>Outras Despesas</h5>
-    <div id="extras">
-      <div class="row mb-2">
-        <div class="col-md-6">
-          <input type="text" name="extra_nome[]" class="form-control" placeholder="Nome da despesa extra">
-        </div>
-        <div class="col-md-4">
-          <input type="number" step="0.01" name="extra_valor[]" class="form-control" placeholder="Valor (R$)">
+      <div class="card-body">
+        <div class="row">
+          {% for nome in despesas_nomes %}
+          <div class="col-md-4 mb-3">
+            <label class="form-label">{{ nome }}</label>
+            <input type="number" step="0.01" name="{{ nome }}" class="form-control despesa-input" placeholder="R$ 0,00" value="{{ request.form.get(nome, '0') }}">
+          </div>
+          {% endfor %}
         </div>
       </div>
     </div>
-    <button type="button" onclick="addExtra()" class="btn btn-outline-secondary mb-3">Adicionar outra despesa</button>
 
-    <div class="mb-4 mt-3">
-      <label class="form-label">Salário do mês (R$)</label>
-      <input type="number" step="0.01" name="salario" class="form-control" required value="{{ salario or '' }}">
+    <div class="card mb-4">
+      <div class="card-header bg-secondary text-white">
+        <h5>Outras Despesas</h5>
+      </div>
+      <div class="card-body">
+        <div id="extras">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <input type="text" name="extra_nome_0" class="form-control" placeholder="Nome da despesa extra">
+            </div>
+            <div class="col-md-4">
+              <input type="text" name="extra_valor_0" class="form-control" placeholder="R$ 0,00">
+            </div>
+          </div>
+        </div>
+        <button type="button" onclick="addExtra()" class="btn btn-outline-primary">
+          ➕ Adicionar Despesa
+        </button>
+      </div>
     </div>
 
-    <div class="d-grid gap-2">
-      <button type="submit" class="btn btn-primary" name="calcular" value="1">Calcular</button>
-      <button type="submit" class="btn btn-success" name="salvar" value="1">Salvar Relatório do Mês</button>
-      <a href="{{ url_for('relatorios') }}">
-        <button type="button" class="btn btn-outline-dark">📄 Ver Relatórios Salvos</button>
-      </a>
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label required-field">Salário do Mês (R$)</label>
+          <input type="number" step="0.01" name="salario" class="form-control" required value="{{ salario }}">
+        </div>
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+          <button type="submit" name="calcular" class="btn btn-primary me-md-2">
+            📊 Calcular
+          </button>
+          <button type="submit" name="salvar" class="btn btn-success">
+            💾 Salvar Relatório
+          </button>
+          <a href="{{ url_for('relatorios') }}" class="btn btn-outline-dark">
+            📂 Relatórios Salvos
+          </a>
+        </div>
+      </div>
     </div>
   </form>
 
   {% if resultado is not none %}
-    <hr>
-    <h4 class="mt-4">Resultado:</h4>
-    <ul class="list-group mb-3">
-      {% for nome, valor in despesas %}
-        <li class="list-group-item d-flex justify-content-between">
-          {{ nome }} <span>R$ {{ "%.2f"|format(valor) }}</span>
-        </li>
-      {% endfor %}
-      <li class="list-group-item d-flex justify-content-between bg-light fw-bold">
-        Total das despesas <span>R$ {{ "%.2f"|format(total) }}</span>
-      </li>
-      <li class="list-group-item d-flex justify-content-between {% if tipo == 'Crédito' %}text-success{% else %}text-danger{% endif %}">
-        {{ tipo }} <span>R$ {{ "%.2f"|format(resultado) }}</span>
-      </li>
-    </ul>
+  <div class="resultado-section">
+    <h4 class="resultado-title">📌 Resultado Financeiro</h4>
+    
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <h5>Despesas</h5>
+        <ul class="list-group">
+          {% for nome, valor in despesas %}
+            <li class="list-group-item d-flex justify-content-between">
+              <span>{{ nome }}</span>
+              <span>R$ {{ "%.2f"|format(valor) }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Resumo</h5>
+            <p class="card-text">
+              <strong>Salário:</strong> R$ {{ "%.2f"|format(salario|float) }}<br>
+              <strong>Total Despesas:</strong> R$ {{ "%.2f"|format(total) }}<br>
+              <strong>Resultado:</strong> 
+              <span class="{{ 'credito' if tipo == 'Crédito' else 'debito' }}">
+                {{ tipo }} de R$ {{ "%.2f"|format(resultado) }}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   {% endif %}
 </div>
 
 <script>
-  function addExtra() {
-    const div = document.createElement('div');
-    div.classList.add('row', 'mb-2');
-    div.innerHTML = `
-      <div class="col-md-6">
-        <input type="text" name="extra_nome[]" class="form-control" placeholder="Nome da despesa extra">
-      </div>
-      <div class="col-md-4">
-        <input type="number" step="0.01" name="extra_valor[]" class="form-control" placeholder="Valor (R$)">
-      </div>`;
-    document.getElementById('extras').appendChild(div);
-  }
+let extraCount = 1;
 
-  setTimeout(() => {
-    const alert = document.querySelector('.alert');
-    if (alert) {
-      alert.classList.remove('show');
-    }
-  }, 5000);
+function addExtra() {
+  const container = document.getElementById("extras");
+  const newRow = document.createElement("div");
+  newRow.className = "row mb-3";
+  newRow.innerHTML = `
+    <div class="col-md-6">
+      <input type="text" name="extra_nome_${extraCount}" class="form-control" placeholder="Nome da despesa extra">
+    </div>
+    <div class="col-md-4">
+      <input type="text" name="extra_valor_${extraCount}" class="form-control" placeholder="R$ 0,00">
+    </div>
+  `;
+  container.appendChild(newRow);
+  extraCount++;
+}
+
+// Validação do formulário
+document.getElementById('financeForm').addEventListener('submit', function(e) {
+  const btnClicked = e.submitter.name;
+  const salario = parseFloat(document.querySelector('[name="salario"]').value);
+  
+  if (btnClicked === 'salvar' && (isNaN(salario) || salario <= 0)) {
+    alert("Informe um salário válido para salvar o relatório!");
+    e.preventDefault();
+    return;
+  }
+});
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

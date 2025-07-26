@@ -4,33 +4,75 @@
     <meta charset="UTF-8">
     <title>Relatório Financeiro</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        h2 { text-align: center; }
-        .credito { color: green; }
-        .deficit { color: red; }
-        ul { list-style-type: none; padding: 0; }
-        li { margin: 5px 0; }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #333;
+            padding: 1cm;
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 16pt;
+            text-align: center;
+            margin-bottom: 0.5cm;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5cm;
+        }
+        .data {
+            text-align: center;
+            color: #666;
+            margin-bottom: 1cm;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.5cm 0;
+        }
+        th, td {
+            padding: 0.3cm;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .total {
+            font-weight: bold;
+        }
+        .credito {
+            color: #27ae60;
+        }
+        .debito {
+            color: #e74c3c;
+        }
     </style>
 </head>
 <body>
-    <h2>Relatório Financeiro</h2>
-    <p><strong>Relatório gerado em:</strong> {{ data }}</p>
+    <h1>Relatório Financeiro</h1>
+    <p class="data">Gerado em: {{ data }}</p>
 
-    <h4>Despesas:</h4>
-    {% if despesas %}
-        <ul>
+    <h2>Despesas</h2>
+    <table>
         {% for nome, valor in despesas %}
-            <li>- {{ nome }}: R$ {{ "%.2f"|format(valor) }}</li>
+        <tr>
+            <td>{{ nome }}</td>
+            <td>R$ {{ "%0.2f"|format(valor) }}</td>
+        </tr>
         {% endfor %}
-        </ul>
-    {% else %}
-        <p>Nenhuma despesa registrada.</p>
-    {% endif %}
+    </table>
 
-    <p><strong>Salário:</strong> R$ {{ "%.2f"|format(salario or 0) }}</p>
-    <p><strong>Total de Despesas:</strong> R$ {{ "%.2f"|format(total or 0) }}</p>
-    <p class="{{ 'credito' if tipo == 'Crédito' else 'deficit' }}">
-        <strong>Resultado:</strong> {{ tipo }} de R$ {{ "%.2f"|format(resultado or 0) }}
-    </p>
+    <h2>Resumo</h2>
+    <table>
+        <tr>
+            <td>Salário:</td>
+            <td>R$ {{ "%0.2f"|format(salario) }}</td>
+        </tr>
+        <tr>
+            <td>Total Despesas:</td>
+            <td>R$ {{ "%0.2f"|format(total) }}</td>
+        </tr>
+        <tr class="total {{ 'credito' if tipo == 'Crédito' else 'debito' }}">
+            <td>Resultado:</td>
+            <td>{{ tipo }} de R$ {{ "%0.2f"|format(resultado) }}</td>
+        </tr>
+    </table>
 </body>
 </html>
