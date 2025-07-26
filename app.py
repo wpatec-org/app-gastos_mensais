@@ -22,47 +22,59 @@ DESPESAS_FIXAS = [
     "IPVA", "IPTU", "Pres Casa", "Pensão", "LICENCIAMENTOS"
 ]
 
+# --- FUNÇÃO DE CONVERSÃO CORRIGIDA ---
+def converter_para_float(valor_str):
+    """Converte uma string de moeda (ex: '1.234,56' ou '1234.56') para float."""
+    if not isinstance(valor_str, str):
+        return float(valor_str or 0.0)
+    # Substitui a vírgula por ponto e depois converte para float
+    # Isso funciona bem com inputs type="number" que enviam '.' como decimal
+    return float(valor_str.replace(',', '.') or 0.0)
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     resultado = total = salario = None
     tipo = ''
     despesas = []
+    despesas_extras_input = []
     salario_input = ''
 
     if request.method == 'POST':
         try:
             # Processa salário
-            salario_str = request.form.get('salario', '0').replace(',', '.')
-            salario = float(salario_str) if salario_str else 0.0
+            salario_str = request.form.get('salario', '0')
+            salario = converter_para_float(salario_str)
             salario_input = request.form.get('salario', '')
             
             # Processa despesas fixas
             for nome in DESPESAS_FIXAS:
-                valor_str = request.form.get(nome, '0').replace(',', '.')
+                valor_str = request.form.get(nome, '0')
                 try:
-                    valor = float(valor_str)
+                    valor = converter_para_float(valor_str)
                     if valor > 0:
                         despesas.append((nome, valor))
-                except ValueError:
+                except (ValueError, TypeError):
                     continue
 
-            # Processa despesas extras (SOLUÇÃO DEFINITIVA)
+            # Processa despesas extras
             i = 0
             while True:
                 nome = request.form.get(f'extra_nome_{i}')
-                valor = request.form.get(f'extra_valor_{i}')
+                valor_str = request.form.get(f'extra_valor_{i}')
                 
-                if not nome and not valor:
+                # Para o loop quando não encontrar mais campos (ex: extra_nome_5 não existe)
+                if nome is None and valor_str is None:
                     break
                     
                 if nome and nome.strip():
                     try:
-                        # Converte formato brasileiro para float
-                        valor_float = float(valor.replace('.', '').replace(',', '.'))
+                        valor_float = converter_para_float(valor_str)
                         if valor_float > 0:
-                            despesas.append((nome.strip(), valor_float))
+                            despesa_extra_tupla = (nome.strip(), valor_float)
+                            despesas.append(despesa_extra_tupla)
+                            despesas_extras_input.append(despesa_extra_tupla)
                             logger.debug(f"Despesa extra {i}: {nome.strip()} - R$ {valor_float:.2f}")
-                    except (ValueError, AttributeError):
+                    except (ValueError, TypeError):
                         continue
                 i += 1
 
@@ -84,12 +96,12 @@ def index():
                         caminho_arquivo = os.path.join(PASTA_RELATORIOS, nome_arquivo)
 
                         html = render_template("relatorio_pdf.html",
-                                            data=agora.strftime('%d/%m/%Y %H:%M'),
-                                            despesas=despesas,
-                                            total=total,
-                                            resultado=abs(resultado),
-                                            tipo=tipo,
-                                            salario=salario)
+                                               data=agora.strftime('%d/%m/%Y %H:%M'),
+                                               despesas=despesas,
+                                               total=total,
+                                               resultado=abs(resultado),
+                                               tipo=tipo,
+                                               salario=salario)
 
                         HTML(string=html).write_pdf(
                             caminho_arquivo,
@@ -107,12 +119,13 @@ def index():
             logger.error(f"Erro processamento: {str(e)}")
 
     return render_template("index.html",
-                        despesas_nomes=DESPESAS_FIXAS,
-                        despesas=despesas,
-                        total=total,
-                        resultado=resultado,
-                        tipo=tipo,
-                        salario=salario_input)
+                           despesas_nomes=DESPESAS_FIXAS,
+                           despesas=despesas,
+                           despesas_extras=despesas_extras_input,
+                           total=total,
+                           resultado=resultado,
+                           tipo=tipo,
+                           salario=salario_input)
 
 @app.route('/relatorios')
 def relatorios():
@@ -132,4 +145,4 @@ def abrir_relatorio(nome_arquivo):
         return redirect(url_for('relatorios'))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5000)

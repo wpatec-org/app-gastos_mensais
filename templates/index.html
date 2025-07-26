@@ -44,7 +44,7 @@
           {% for nome in despesas_nomes %}
           <div class="col-md-4 mb-3">
             <label class="form-label">{{ nome }}</label>
-            <input type="number" step="0.01" name="{{ nome }}" class="form-control despesa-input" placeholder="R$ 0,00" value="{{ request.form.get(nome, '0') }}">
+            <input type="number" step="0.01" name="{{ nome }}" class="form-control despesa-input" placeholder="0.00" value="{{ request.form.get(nome, '') }}">
           </div>
           {% endfor %}
         </div>
@@ -57,14 +57,16 @@
       </div>
       <div class="card-body">
         <div id="extras">
+          {% for nome, valor in despesas_extras %}
           <div class="row mb-3">
             <div class="col-md-6">
-              <input type="text" name="extra_nome_0" class="form-control" placeholder="Nome da despesa extra">
+              <input type="text" name="extra_nome_{{ loop.index0 }}" class="form-control" placeholder="Nome da despesa extra" value="{{ nome }}">
             </div>
             <div class="col-md-4">
-              <input type="text" name="extra_valor_0" class="form-control" placeholder="R$ 0,00">
+              <input type="number" step="0.01" name="extra_valor_{{ loop.index0 }}" class="form-control" placeholder="0.00" value="{{ '%.2f'|format(valor) }}">
             </div>
           </div>
+          {% endfor %}
         </div>
         <button type="button" onclick="addExtra()" class="btn btn-outline-primary">
           ➕ Adicionar Despesa
@@ -120,7 +122,7 @@
               <strong>Total Despesas:</strong> R$ {{ "%.2f"|format(total) }}<br>
               <strong>Resultado:</strong> 
               <span class="{{ 'credito' if tipo == 'Crédito' else 'debito' }}">
-                {{ tipo }} de R$ {{ "%.2f"|format(resultado) }}
+                {{ tipo }} de R$ {{ "%.2f"|format(resultado|abs) }}
               </span>
             </p>
           </div>
@@ -132,7 +134,7 @@
 </div>
 
 <script>
-let extraCount = 1;
+let extraCount = {{ despesas_extras|length }};
 
 function addExtra() {
   const container = document.getElementById("extras");
@@ -143,17 +145,24 @@ function addExtra() {
       <input type="text" name="extra_nome_${extraCount}" class="form-control" placeholder="Nome da despesa extra">
     </div>
     <div class="col-md-4">
-      <input type="text" name="extra_valor_${extraCount}" class="form-control" placeholder="R$ 0,00">
+      <input type="number" step="0.01" name="extra_valor_${extraCount}" class="form-control" placeholder="0.00">
     </div>
   `;
   container.appendChild(newRow);
   extraCount++;
 }
 
-// Validação do formulário
+// Garante que haja pelo menos uma linha de despesa extra ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    if (extraCount === 0) {
+        addExtra();
+    }
+});
+
 document.getElementById('financeForm').addEventListener('submit', function(e) {
-  const btnClicked = e.submitter.name;
-  const salario = parseFloat(document.querySelector('[name="salario"]').value);
+  const btnClicked = e.submitter ? e.submitter.name : 'calcular';
+  const salarioInput = document.querySelector('[name="salario"]').value;
+  const salario = parseFloat(salarioInput.replace(',', '.'));
   
   if (btnClicked === 'salvar' && (isNaN(salario) || salario <= 0)) {
     alert("Informe um salário válido para salvar o relatório!");
