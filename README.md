@@ -20,18 +20,15 @@ docker build --no-cache -t app-gastos_mensais .
 
 ### 1.1 – Publicar Imagem no Docker Hub
 
-#### ✅ Login no Docker Hub
-```bash
-docker login
-```
-
 #### ✅ Antes Criar o Repositório no Docker Hub, com o mesmo nome do app
 ```
 Name: app-gastos_mensais
 ```
 
-#### ✅ Criar repositório no Docker Hub  
-Exemplo: `app-gastos_mensais`
+#### ✅ Login no Docker Hub
+```bash
+docker login
+```
 
 #### ✅ Construir imagem com nome do Docker Hub
 ```bash
