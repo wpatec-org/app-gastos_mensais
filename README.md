@@ -25,6 +25,11 @@ docker build --no-cache -t app-gastos_mensais .
 docker login
 ```
 
+#### ✅ Antes Criar o Repositório no Docker Hub, com o mesmo nome do app
+```
+Name: app-gastos_mensais
+```
+
 #### ✅ Criar repositório no Docker Hub  
 Exemplo: `app-gastos_mensais`
 
@@ -63,7 +68,7 @@ docker run -p 5000:5000 cloudwpa22/app-gastos_mensais:v1
 ## 3 – Executar na VM Linux com Docker Compose
 
 ### 📦 Volume Nomeado (recomendado)
-Adicione no `docker-compose.yml`:
+ `Baixe o arquivo - docker-compose.yml`:
 ```yaml
 volumes:
   - relatorios_data:/app/relatorios
