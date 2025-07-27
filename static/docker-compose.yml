@@ -1,0 +1,26 @@
+## Docker-compose.yml ajustado para usar sua imagem do Docker Hub
+
+services:
+  flask-app:
+    image: cloudwpa22/app-gastos_mensais:v2
+    container_name: app-gastos_mensais
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "5000:5000"
+    volumes:
+      #- relatorios_data:/app/relatorios  # Volume nomeado para persistência
+       - ./relatorios_data:/app/relatorios  # Alternativa: bind, Isso mapeia para uma pasta local, onde esta o compose
+    user: "appuser"
+    networks:
+      - flask-network
+
+volumes:
+  relatorios_data:  # Volume gerenciado pelo Docker (persistente)
+    driver: local
+
+networks:
+  flask-network:
+    driver: bridge

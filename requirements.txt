@@ -1,3 +1,4 @@
 Flask==2.3.3
 WeasyPrint==54.3
-Jinja2==3.0.1
+Jinja2==3.1.2  # Versão mínima exigida pelo Flask 2.3.3
+gunicorn==21.2.0
