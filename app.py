@@ -17,9 +17,9 @@ PASTA_RELATORIOS = os.path.join(BASE_DIR, 'relatorios')
 os.makedirs(PASTA_RELATORIOS, exist_ok=True)
 
 DESPESAS_FIXAS = [
-    "ItauCard", "NUBANK", "WillBank", "INTER", "MELIUZ",
-    "PAN", "PIC PAY", "AGUA", "LUZ", "IINTERNET",
-    "IPVA", "IPTU", "Pres Casa", "Pensão", "LICENCIAMENTOS"
+    "Fatura ItauCard", "Fatura NUBANK", "Fatura WillBank", "Fatura INTER", "Fatura MELIUZ",
+    "Fatura PAN", "Fatura PIC PAY", "Conta de AGUA", "Conta de LUZ", "Fatura INTERNET",
+    "IPVA", "IPTU", "Prest Casa", "Pensão", "LICENCIAMENTOS"
 ]
 
 # --- FUNÇÃO DE CONVERSÃO CORRIGIDA ---
