@@ -6,9 +6,9 @@ RUN apt-get update && apt-get install -y \
     libpangoft2-1.0-0 \
     libpangocairo-1.0-0 \
     libcairo2 \
-    libgdk-pixbuf-2.0-0 \  # Nome corrigido
+    libgdk-pixbuf-2.0-0 \
     shared-mime-info \
-    media-types \  # Substitui mime-support
+    media-types \
     fonts-dejavu \
     fonts-liberation \
     --no-install-recommends \
