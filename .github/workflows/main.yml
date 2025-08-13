@@ -2,7 +2,7 @@ name: Build, Push to Docker Hub, and Deploy
 
 on:
   push:
-    branches: ["main"]  # Dispara quando houver push na main
+    branches: ["main"]
 
 jobs:
   build-and-push:
@@ -24,22 +24,19 @@ jobs:
             -t cloudwpa22/app-gastos_mensais:latest \
             -t cloudwpa22/app-gastos_mensais:git-$COMMIT_SHA .
           docker push cloudwpa22/app-gastos_mensais --all-tags
-          
-  deploy-to-vm:
-    needs: build-and-push  # Só executa após o build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: "just-a-placeholder-so-we-dont-get-errors"
 
-      - name: Deploy to VM
+  deploy-to-vm:
+    needs: build-and-push
+    runs-on: [self-hosted, "dockerdebian12"]  # 🔥 Usando o nome do seu runner
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Pull and Update Containers
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_IP }} "
-            docker pull cloudwpa22/app-gastos_mensais:latest && \
-            docker stop app-gastos_mensais || true && \
-            docker rm app-gastos_mensais || true && \
-            docker-compose -f /caminho/para/seu/docker-compose.yml up -d
-          "
+          docker pull cloudwpa22/app-gastos_mensais:latest
+          docker-compose -f /opt/app-gastos_mensais/docker-compose.yml down
+          docker-compose -f /opt/app-gastos_mensais/docker-compose.yml up -d
+
+      - name: Cleanup  # 🔥 Passo de limpeza adicionado
+        run: docker system prune -f --all
