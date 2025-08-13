@@ -19,11 +19,12 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t cloudwpa22/app-gastos_mensais:latest .
-          docker tag cloudwpa22/app-gastos_mensais:latest cloudwpa22/app-gastos_mensais:v${{ github.run_number }}
-          docker push cloudwpa22/app-gastos_mensais:latest
-          docker push cloudwpa22/app-gastos_mensais:v${{ github.run_number }}
-
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          docker build \
+            -t cloudwpa22/app-gastos_mensais:latest \
+            -t cloudwpa22/app-gastos_mensais:git-$COMMIT_SHA .
+          docker push cloudwpa22/app-gastos_mensais --all-tags
+          
   deploy-to-vm:
     needs: build-and-push  # Só executa após o build-and-push
     runs-on: ubuntu-latest
