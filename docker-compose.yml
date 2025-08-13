@@ -2,7 +2,7 @@
 
 services:
   flask-app:
-    image: cloudwpa22/app-gastos_mensais:v2
+    image: cloudwpa22/app-gastos_mensais:latest
     container_name: app-gastos_mensais
     restart: unless-stopped
     environment:
