@@ -1,0 +1,44 @@
+name: Build, Push to Docker Hub, and Deploy
+
+on:
+  push:
+    branches: ["main"]  # Dispara quando houver push na main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t cloudwpa22/app-gastos_mensais:latest .
+          docker tag cloudwpa22/app-gastos_mensais:latest cloudwpa22/app-gastos_mensais:v${{ github.run_number }}
+          docker push cloudwpa22/app-gastos_mensais:latest
+          docker push cloudwpa22/app-gastos_mensais:v${{ github.run_number }}
+
+  deploy-to-vm:
+    needs: build-and-push  # Só executa após o build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: "just-a-placeholder-so-we-dont-get-errors"
+
+      - name: Deploy to VM
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_IP }} "
+            docker pull cloudwpa22/app-gastos_mensais:latest && \
+            docker stop app-gastos_mensais || true && \
+            docker rm app-gastos_mensais || true && \
+            docker-compose -f /caminho/para/seu/docker-compose.yml up -d
+          "
