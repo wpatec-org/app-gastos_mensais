@@ -20,12 +20,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o código fonte
-COPY --chown=appuser:appuser . .
-
 # Configura usuário não-root
 RUN useradd --create-home appuser \
     && chown -R appuser:appuser /app
+
+# Copia o código fonte
+COPY --chown=appuser:appuser . .
+   
+# Define usuário
 USER appuser
 
 VOLUME /app/relatorios
