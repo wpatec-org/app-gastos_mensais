@@ -11,8 +11,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      #- relatorios_data:/app/relatorios  # Volume nomeado para persistência
-       - ./relatorios_data:/app/relatorios  # Alternativa: bind, Isso mapeia para uma pasta local, onde esta o compose
+      #- ./relatorios_data:/app/relatorios  # Alternativa: bind, Isso mapeia para uma pasta local, onde esta o compose
+       - /opt/app-gastos_mensais/relatorios_data:/app/relatorios # Alternativa: bind, Isso mapeia para uma pasta local, onde esta o compose
+
     user: "appuser"
     networks:
       - flask-network
