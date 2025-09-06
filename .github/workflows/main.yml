@@ -3,9 +3,9 @@ name: Build, Push to Docker Hub, and Deploy
 on:
   push:
     branches: ["main"]
-  workflow_dispatch: {}  # opcional: permite rodar manualmente
+  workflow_dispatch: {}  # permite rodar manualmente
 
-# Evita corrida de deploys
+# Evita corrida de execuções de deploy
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
@@ -31,7 +31,6 @@ jobs:
         run: |
           set -euxo pipefail
           COMMIT_SHA=$(git rev-parse --short HEAD)
-
           docker buildx build \
             --push \
             -t cloudwpa22/app-gastos_mensais:latest \
@@ -40,14 +39,13 @@ jobs:
 
   deploy-to-vm:
     needs: build-and-push
-    runs-on: [self-hosted, "dockerdebian12"]  # usa seu runner
-    timeout-minutes: 10
+    runs-on: [self-hosted, Linux, X64]   # ✅ casa com as labels do seu runner
+    timeout-minutes: 15
     env:
       COMPOSE_FILE: /opt/app-gastos_mensais/docker-compose.yml
       SERVICE_NAME: flask-app
       CONTAINER_NAME: app-gastos_mensais
     steps:
-      # ✅ AQUI entra o Pre-flight (diagnóstico rápido)
       - name: Pre-flight (diagnóstico rápido)
         run: |
           set -x
@@ -67,17 +65,17 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # Usa docker compose v2, se existir; caso não, usa v1
+          # Use docker compose v2 se existir; senão, fallback para v1
           if docker compose version >/dev/null 2>&1; then
             DC="docker compose -f $COMPOSE_FILE"
           else
             DC="docker-compose -f $COMPOSE_FILE"
           fi
 
-          # Puxa sempre a última imagem do serviço
+          # Puxa sempre a última imagem do serviço (ok se for 1ª vez)
           $DC pull $SERVICE_NAME --quiet || true
 
-          # Sobe somente o serviço alvo, sem rebuild, puxando sempre
+          # Sobe/atualiza apenas o serviço alvo, sem rebuild
           $DC up -d --pull always --no-build $SERVICE_NAME
 
           # Mostra estado
@@ -89,7 +87,7 @@ jobs:
           set -x
           docker logs --tail 120 "$CONTAINER_NAME" || true
 
-      # Limpeza leve e segura (evite --all)
+      # Limpeza leve e segura (evite --all que é lento)
       - name: Cleanup lightweight (opcional)
         run: |
           docker image prune -f --filter "until=168h" || true
