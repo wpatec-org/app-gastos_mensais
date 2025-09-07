@@ -3,21 +3,31 @@ name: Build, Push to Docker Hub, and Deploy
 on:
   push:
     branches: ["main"]
-  workflow_dispatch: {}  # permite rodar manualmente
+  workflow_dispatch: {}  # permite disparar manualmente pelo GitHub
 
-# Evita corrida de execuções de deploy
+# Evita que múltiplos deploys da mesma branch rodem ao mesmo tempo
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
+# Permissões mínimas necessárias para este workflow
+permissions:
+  contents: read
+
+env:
+  # Centraliza o nome da imagem para evitar repetição
+  DOCKERHUB_IMAGE: cloudwpa22/app-gastos_mensais
+
 jobs:
   build-and-push:
+    name: Build & Push
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Buildx habilita o BuildKit + push direto e prepara cache
       - name: Set up Buildx (melhor cache/push)
         uses: docker/setup-buildx-action@v3
 
@@ -33,19 +43,21 @@ jobs:
           COMMIT_SHA=$(git rev-parse --short HEAD)
           docker buildx build \
             --push \
-            -t cloudwpa22/app-gastos_mensais:latest \
-            -t cloudwpa22/app-gastos_mensais:git-$COMMIT_SHA \
+            -t $DOCKERHUB_IMAGE:latest \
+            -t $DOCKERHUB_IMAGE:git-$COMMIT_SHA \
             .
 
   deploy-to-vm:
+    name: Deploy to VM (Self-hosted)
     needs: build-and-push
-    runs-on: [self-hosted, Linux, X64]   # ✅ casa com as labels do seu runner
+    runs-on: [self-hosted, dockerdebian12]   # label exclusivo do seu runner
     timeout-minutes: 15
     env:
       COMPOSE_FILE: /opt/app-gastos_mensais/docker-compose.yml
       SERVICE_NAME: flask-app
       CONTAINER_NAME: app-gastos_mensais
     steps:
+      # Diagnóstico rápido para dar visibilidade se algo der errado
       - name: Pre-flight (diagnóstico rápido)
         run: |
           set -x
@@ -65,20 +77,20 @@ jobs:
         run: |
           set -euxo pipefail
 
-          # Use docker compose v2 se existir; senão, fallback para v1
+          # Usa docker compose (plugin v2) se existir; senão, docker-compose (v1)
           if docker compose version >/dev/null 2>&1; then
             DC="docker compose -f $COMPOSE_FILE"
           else
             DC="docker-compose -f $COMPOSE_FILE"
           fi
 
-          # Puxa sempre a última imagem do serviço (ok se for 1ª vez)
+          # Puxa sempre a última imagem do serviço (ok mesmo se for 1ª vez)
           $DC pull $SERVICE_NAME --quiet || true
 
-          # Sobe/atualiza apenas o serviço alvo, sem rebuild
+          # Sobe/atualiza sem rebuild, sempre puxando a imagem
           $DC up -d --pull always --no-build $SERVICE_NAME
 
-          # Mostra estado
+          # Mostra estado atual
           $DC ps
 
       - name: Show app logs (últimas 120 linhas)
@@ -87,7 +99,7 @@ jobs:
           set -x
           docker logs --tail 120 "$CONTAINER_NAME" || true
 
-      # Limpeza leve e segura (evite --all que é lento)
+      # Limpeza leve e segura (evite --all, que é lento e apaga demais)
       - name: Cleanup lightweight (opcional)
         run: |
           docker image prune -f --filter "until=168h" || true
