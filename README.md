@@ -99,3 +99,25 @@ docker-compose logs -f       # Logs em tempo real
 docker volume inspect app-gastos_mensais_relatorios_data
 ```
 
+## 4 – CI/CD com GitHub Actions, Docker Hub e Runner Self-Hosted
+
+Este projeto utiliza um pipeline automatizado para build, push e deploy da aplicação Flask em uma VM Linux com Docker.
+
+### 🔁 Fluxo Automatizado
+
+1. **Build e Push da Imagem**:
+   - Disparado ao fazer push na branch `main`.
+   - Utiliza `docker buildx` para construir e enviar a imagem para o Docker Hub com tags:
+     - `latest`
+     - `git-<commit_sha>`
+
+2. **Deploy na VM Linux**:
+   - Executado por um **Runner Self-Hosted** registrado na organização (`dockerdebian12`).
+   - Puxa a imagem mais recente e atualiza o container via `docker compose`.
+
+3. **Limpeza leve**:
+   - Executa `docker image prune` para liberar espaço sem afetar imagens recentes.
+
+### 🛠️ Configuração do Workflow
+
+Arquivo: `.github/workflows/main.yml`
