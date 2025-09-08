@@ -1,11 +1,12 @@
 name: Build, Push to Docker Hub, and Deploy
 
+# Dispara o workflow quando houver push na branch main ou manualmente
 on:
   push:
     branches: ["main"]
-  workflow_dispatch: {}  # permite disparar manualmente pelo GitHub
+  workflow_dispatch: {}
 
-# Evita que múltiplos deploys da mesma branch rodem ao mesmo tempo
+# Evita que múltiplos deploys simultâneos da mesma branch rodem ao mesmo tempo
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
@@ -14,30 +15,29 @@ concurrency:
 permissions:
   contents: read
 
+# Centraliza o nome da imagem para evitar repetição
 env:
-  # Centraliza o nome da imagem para evitar repetição
   DOCKERHUB_IMAGE: cloudwpa22/app-gastos_mensais
-
 jobs:
+  # Etapa 1: Build e Push da imagem para o Docker Hub
   build-and-push:
     name: Build & Push
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout code
+      - name: Checkout do código
         uses: actions/checkout@v4
 
-      # Buildx habilita o BuildKit + push direto e prepara cache
       - name: Set up Buildx (melhor cache/push)
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
+      - name: Login no Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
+      - name: Build e Push da imagem
         run: |
           set -euxo pipefail
           COMMIT_SHA=$(git rev-parse --short HEAD)
@@ -47,18 +47,17 @@ jobs:
             -t $DOCKERHUB_IMAGE:git-$COMMIT_SHA \
             .
 
+  # Etapa 2: Deploy na VM usando runner self-hosted
   deploy-to-vm:
     name: Deploy to VM (Self-hosted)
     needs: build-and-push
-    runs-on: [self-hosted, dockerdebian12]   # label exclusivo do seu runner
+    runs-on: [self-hosted, dockerdebian12]  # Label do runner na sua VM
     timeout-minutes: 15
     env:
-      COMPOSE_FILE: /opt/app-gastos_mensais/docker-compose.yml
       SERVICE_NAME: flask-app
       CONTAINER_NAME: app-gastos_mensais
     steps:
-      # Diagnóstico rápido para dar visibilidade se algo der errado
-      - name: Pre-flight (diagnóstico rápido)
+      - name: Diagnóstico rápido (Pre-flight)
         run: |
           set -x
           whoami
@@ -71,36 +70,41 @@ jobs:
           command -v docker-compose || true
           id
           docker info | sed -n '1,60p'
-          test -f "$COMPOSE_FILE" && echo "Compose encontrado em $COMPOSE_FILE" || (echo "Compose NÃO encontrado!" && exit 1)
 
-      - name: Pull and Update Containers
+      # Checkout do repositório diretamente na VM
+      - name: Checkout do repositório na VM
+        uses: actions/checkout@v4
+
+      # Deploy usando o compose do repositório
+      - name: Deploy usando compose do repo
         run: |
           set -euxo pipefail
 
-          # Usa docker compose (plugin v2) se existir; senão, docker-compose (v1)
+          # Detecta se está usando docker compose v2 ou v1
           if docker compose version >/dev/null 2>&1; then
-            DC="docker compose -f $COMPOSE_FILE"
+            DC="docker compose -f ./docker-compose.yml"
           else
-            DC="docker-compose -f $COMPOSE_FILE"
+            DC="docker-compose -f ./docker-compose.yml"
           fi
 
-          # Puxa sempre a última imagem do serviço (ok mesmo se for 1ª vez)
+          # Puxa a imagem mais recente do serviço
           $DC pull $SERVICE_NAME --quiet || true
 
-          # Sobe/atualiza sem rebuild, sempre puxando a imagem
+          # Sobe o serviço sem rebuild, sempre puxando a imagem
           $DC up -d --pull always --no-build $SERVICE_NAME
 
-          # Mostra estado atual
+          # Mostra o estado atual dos containers
           $DC ps
 
+      # Logs da aplicação (últimas 120 linhas)
       - name: Show app logs (últimas 120 linhas)
         if: always()
         run: |
           set -x
           docker logs --tail 120 "$CONTAINER_NAME" || true
 
-      # Limpeza leve e segura (evite --all, que é lento e apaga demais)
-      - name: Cleanup lightweight (opcional)
+      # Limpeza leve de imagens antigas e cache
+      - name: Cleanup leve (opcional)
         run: |
           docker image prune -f --filter "until=168h" || true
           docker builder prune -f --keep-storage 2GB || true
