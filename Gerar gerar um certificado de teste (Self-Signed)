@@ -1,0 +1,40 @@
+
+### 1. Preciso criar uma nova imagem?
+
+O seu código só precisa estar configurado para procurar o certificado em um caminho específico (ex: `/certs/server.crt`).
+
+No **Azure Web App for Containers**, você não "cria a unidade" na imagem; você configura o Azure para "injetar" o certificado nesse caminho.
+
+* Se o seu app já sabe ler o certificado de uma variável de ambiente ou de um caminho fixo, basta subir a imagem atual e fazer o mapeamento no portal do Azure.
+
+---
+
+### 2. Como gerar um certificado de teste (Self-Signed)?
+
+Como o Application Gateway exige um certificado para o back-end, você pode gerar um **autoassinado** (Self-Signed) usando o OpenSSL. No Linux (ou WSL no Windows), rode:
+
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365 -nodes
+
+```
+
+**Para o Azure Web App:**
+
+1. Converta para o formato `.pfx` (que o Azure pede para o servidor):
+`openssl pkcs12 -export -out certificado.pfx -inkey key.pem -in cert.pem`
+2. Extraia a chave pública `.cer` (que você vai subir no **HTTP Settings** do Application Gateway):
+`openssl x509 -inform pem -in cert.pem -outform der -out certificado.cer`
+
+---
+
+### Como configurar no Web App (Resumo)
+
+Para que o container "enxergue" esse certificado que você gerou:
+
+1. **Upload:** No portal do Azure, vá no seu Web App > **Certificates** > Faça o upload do `.pfx`.
+2. **Configuração:** Vá em **Environment Variables** e adicione a chave `WEBSITE_LOAD_CERTIFICATES` com o valor `*` (ou o "thumbprint" do certificado).
+3. **Acesso:** O Azure vai colocar esse certificado em uma pasta interna do container (geralmente em `/var/ssl/certs` no Linux). Seu app só precisa ler esse arquivo para subir o HTTPS.
+
+**Dica de ouro:** No ambiente de teste, lembre-se que o Application Gateway só vai aceitar esse certificado autoassinado se você subir a chave pública (`.cer`) dele nas **HTTP Settings**, conforme vimos na questão anterior!
+
+Quer que eu te passe os comandos exatos para o seu app (Python, Node ou Java) ler esse arquivo de certificado dentro do Azure?
